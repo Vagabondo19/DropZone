@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login Web3 con Supabase (Solana)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #f7f7f7;
+      color: #222;
+      text-align: center;
+    }
+    button {
+      padding: 0.8rem 1.5rem;
+      font-size: 1.1rem;
+      background-color: #3b82f6;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    #wallet-address {
+      margin-top: 1rem;
+      font-weight: bold;
+      word-break: break-all;
+    }
+    #status {
+      margin-top: 1rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Accedi con il tuo cavolo di wallet Solana</h1>
+  <div id="status">Non autenticato</div>
+  <button id="btnConnect">Connetti Wallet</button>
+  <button id="btnLogout" style="display:none;">Logout</button>
+  <div id="wallet-address"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    // Inserisci qui URL e chiave anonima del tuo progetto Supabase
+    const supabaseUrl = 'https://pfmubrlhnorbqdiwwsht.supabase.co'
+    const supabaseAnonKey = 'https://pfmubrlhnorbqdiwwsht.supabase.co'
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    const btnConnect = document.getElementById('btnConnect')
+    const btnLogout = document.getElementById('btnLogout')
+    const status = document.getElementById('status')
+    const walletAddressDiv = document.getElementById('wallet-address')
+
+    // Funzione per aggiornare UI dopo login/logout
+    function updateUI(session) {
+      if (session) {
+        status.textContent = 'Autenticato con wallet:'
+        walletAddressDiv.textContent = session.user.user_metadata.wallet_address || 'Indirizzo non disponibile'
+        btnConnect.style.display = 'none'
+        btnLogout.style.display = 'inline-block'
+      } else {
+        status.textContent = 'Non autenticato'
+        walletAddressDiv.textContent = ''
+        btnConnect.style.display = 'inline-block'
+        btnLogout.style.display = 'none'
+      }
+    }
+
+    // Controlla se esiste sessione attiva
+    supabase.auth.getSession().then(({ data }) => {
+      updateUI(data.session)
+    })
+
+    // Event listener per login con wallet Solana
+    btnConnect.addEventListener('click', async () => {
+      if (!window.solana || !window.solana.isPhantom) {
+        alert('Wallet Solana (Phantom) non trovato. Installa Phantom wallet e riprova.')
+        return
+      }
+
+      try {
+        // Connessione al wallet
+        await window.solana.connect()
+
+        // Login con Supabase Web3
+        const { data, error } = await supabase.auth.signInWithWeb3({
+          chain: 'solana',
+          statement: 'Accetto i Termini di Servizio https://endpoint-edz.vercel.app/'
+        })
+
+        if (error) {
+          alert('Errore autenticazione: ' + error.message)
+          return
+        }
+
+        updateUI(data.session)
+      } catch (err) {
+        alert('Errore connessione wallet: ' + err.message)
+      }
+    })
+
+    // Logout
+    btnLogout.addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      updateUI(null)
+    })
+
+    // Aggiorna UI al cambio di sessione (es. login in altra tab)
+    supabase.auth.onAuthStateChange((_event, session) => {
+      updateUI(session)
+    })
+  </script>
+
+</body>
+</html>
+
